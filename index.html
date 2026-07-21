@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyCraft AI - Liquid Glass Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME VARIANT MATRIX DESIGN TOKENS --- */
+        :root {
+            --bg-canvas: linear-gradient(135deg, #e0f2fe 0%, #fffbda 50%, #fce7f3 100%);
+            --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.15) 100%);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --glass-border-hover: rgba(255, 255, 255, 0.85);
+            --glass-border-focus: rgba(255, 255, 255, 0.95);
+            --text-color: #1c1917;
+            --placeholder-color: rgba(28, 25, 23, 0.45);
+            --specular-inset: rgba(255, 255, 255, 0.5);
+            --aura-glow: rgba(255, 255, 255, 0.6);
+            --ambient-shadow: rgba(0, 0, 0, 0.03);
+            --btn-bg: #1c1917;
+            --btn-text: #ffffff;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg-canvas);
+            background-attachment: fixed;
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Premium Glass Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 1px 0 0 var(--specular-inset) inset, 0 10px 40px var(--ambient-shadow);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+
+        .message-container { scroll-behavior: smooth; }
+        .chat-bubble { white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+
+        /* --- TAB TRACK STYLES --- */
+        .tab-track {
+            position: relative;
+            display: flex;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+            user-select: none;
+            width: fit-content;
+            margin: 0 auto;
+        }
+        .tab-item {
+            position: relative;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4b5563;
+            text-decoration: none;
+            cursor: pointer;
+            z-index: 2;
+            text-align: center;
+            transition: color 0.3s ease;
+        }
+        .tab-item.active { font-weight: 600; color: #111827; }
+        .tab-pill {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            height: calc(100% - 12px);
+            width: 0; 
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.45) 100%);
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.6) inset, 0 2px 8px rgba(0, 0, 0, 0.04);
+            z-index: 1;
+            pointer-events: none;
+            transition: left 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), width 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), transform 0.45s cubic-bezier(0.25, 1.4, 0.4, 1);
+        }
+        .tab-item:hover:not(.active) { color: #111827; }
+
+        /* --- TOUGH BUBBLE BUTTON STYLES --- */
+        .btn-tough-bubble {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 38px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-color);
+            text-decoration: none;
+            letter-spacing: -0.01em;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 9999px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 1px 0 0 var(--specular-inset) inset, 0 4px 16px var(--ambient-shadow);
+            overflow: hidden;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.6s cubic-bezier(0.25, 1.5, 0.5, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .btn-tough-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 300%; height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.0) 30%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 255, 255, 0.7) 50%, rgba(255, 255, 255, 0.35) 55%, rgba(255, 255, 255, 0.0) 70%, transparent 100%);
+            transform: skewX(-25deg);
+            transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .btn-tough-bubble:hover {
+            border-color: var(--glass-border-hover);
+            box-shadow: 0 1px 0 0 var(--specular-inset) inset, 0 10px 25px var(--aura-glow), 0 8px 24px rgba(31, 41, 55, 0.06);   
+            transform: translateY(-1px);
+        }
+        .btn-tough-bubble:hover::before { left: 100%; }
+        .btn-tough-bubble:active {
+            transition: transform 0.05s linear; 
+            box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.3) inset, 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .btn-text { pointer-events: none; transition: transform 0.05s linear; }
+
+        /* --- GLASS INPUT STYLES --- */
+        .glass-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            border-radius: 9999px;
+            overflow: hidden;
+            transform-origin: center center;
+            transition: transform 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), box-shadow 0.45s cubic-bezier(0.25, 1.4, 0.4, 1);
+        }
+        .glass-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--text-color);
+            outline: none;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 9999px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 1px 0 0 var(--specular-inset) inset, 0 4px 16px var(--ambient-shadow);
+            transition: border-color 0.3s ease, box-shadow 0.4s ease;
+        }
+        .glass-input::placeholder { color: var(--placeholder-color); }
+        .glass-input-wrapper:hover .glass-input { border-color: var(--glass-border-hover); }
+        .glass-input:focus {
+            border-color: var(--glass-border-focus);
+            box-shadow: 0 1px 0 0 var(--specular-inset) inset, 0 0 24px var(--aura-glow), 0 12px 28px var(--ambient-shadow);
+        }
+        .glass-input-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -150%;
+            width: 300%; height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.0) 30%, rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0.1) 58%, rgba(255, 255, 255, 0.0) 70%, transparent 100%);
+            transform: skewX(-30deg);
+            pointer-events: none;
+            z-index: 2;
+            transition: left 0.65s cubic-bezier(0.25, 1, 0.4, 1);
+        }
+        .glass-input-wrapper:hover::before { left: 150%; }
+
+        textarea.glass-input {
+            border-radius: 24px;
+            min-height: 56px;
+            max-height: 150px;
+            resize: none;
+            padding-right: 50px;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="min-h-screen p-4 md:p-8 flex flex-col gap-6">
+        
+        <!-- Header & Tabs -->
+        <header class="flex flex-col items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">P</div>
+                <h1 class="text-3xl font-bold tracking-tight">PyCraft AI</h1>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="tab-track">
+                <div class="tab-pill" id="activePill"></div>
+                <div class="tab-item active" data-index="0">Home</div>
+                <div class="tab-item" data-index="1">Project</div>
+                <div class="tab-item" data-index="2">Setting</div>
+            </div>
+        </header>
+
+        <!-- Views Container -->
+        <div class="flex-1 max-w-6xl w-full mx-auto">
+
+            <!-- HOME VIEW -->
+            <div id="home-view" class="view">
+                <div class="glass-card p-12 flex flex-col items-center text-center gap-8">
+                    <div class="max-w-2xl">
+                        <h2 class="text-4xl font-bold mb-4">你的 Python AI 開發空間</h2>
+                        <p class="text-lg text-gray-600 mb-8">透過 Pyodide 在瀏覽器中直接執行 Python。結合 BYOK 系統，讓 AI 為你撰寫腳本、教學指導，並自動推送到 GitHub。</p>
+                    </div>
+                    <!-- Tough Bubble Button -->
+                    <div class="btn-tough-bubble" id="bubbleButton" onclick="switchTab(1)">
+                        <span class="btn-text">開啟新專案</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROJECT VIEW -->
+            <div id="project-view" class="view hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[70vh]">
+                    
+                    <!-- Chat Interface -->
+                    <div class="glass-card p-6 flex flex-col overflow-hidden lg:col-span-2">
+                        <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 pr-2 message-container mb-4">
+                            <div class="flex justify-start">
+                                <div class="chat-bubble max-w-[80%] p-3 rounded-2xl bg-white/50 border border-white/60 shadow-sm">
+                                    Hi! I am PyCraft AI. Ask me to write a script, teach Python, or push a file to GitHub.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Input Area -->
+                        <div class="border-t border-white/30 pt-4">
+                            <div id="upload-preview" class="mb-2 hidden text-xs bg-white/50 p-2 rounded-lg w-fit"></div>
+                            <div class="flex items-end gap-3 relative">
+                                <input type="file" id="file-input" class="hidden" accept="image/*,.txt,.py,.json,.csv">
+                                <button id="upload-btn" class="p-3 rounded-full bg-white/50 border border-white/60 shadow-sm hover:bg-white/80 transition text-gray-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                </button>
+                                
+                                <!-- Jelly Glass Input Wrapper -->
+                                <div class="glass-input-wrapper flex-1" id="jellyWrapper">
+                                    <textarea id="user-input" rows="1" class="glass-input" placeholder="詢問 AI 撰寫腳本或推送到 GitHub..."></textarea>
+                                </div>
+                                
+                                <div class="btn-tough-bubble !p-3 !rounded-full" id="send-btn" style="width: 48px; height: 48px;">
+                                    <span class="btn-text">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Python Console -->
+                    <div class="glass-card p-6 flex flex-col overflow-hidden">
+                        <div class="flex items-center gap-2 mb-4 text-gray-600 text-sm font-medium border-b border-white/30 pb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                            Pyodide Live Console
+                        </div>
+                        <div id="python-console" class="flex-1 bg-gray-900/90 backdrop-blur-md rounded-2xl p-4 text-green-400 font-mono text-xs overflow-y-auto whitespace-pre-wrap">
+                            <span class="text-gray-500">>> Initializing Python environment...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTING VIEW -->
+            <div id="setting-view" class="view hidden">
+                <div class="glass-card p-8 max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-6">Settings & API Keys</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">AI Provider</label>
+                            <select id="provider-select" class="w-full p-3 rounded-xl bg-white/50 border border-white/60 outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="openai">OpenAI</option>
+                                <option value="claude">Anthropic Claude</option>
+                                <option value="gemini">Google Gemini</option>
+                                <option value="ollama">Ollama (Local)</option>
+                                <option value="openrouter">OpenRouter</option>
+                                <option value="groq">Groq</option>
+                                <option value="together">Together AI</option>
+                                <option value="huggingface">Hugging Face</option>
+                                <option value="mistral">Mistral AI</option>
+                                <option value="xai">xAI (Grok)</option>
+                                <option value="nvidia">NVIDIA NIM</option>
+                                <option value="lmstudio">LM Studio (Local)</option>
+                                <option value="custom">Custom OpenAI Compatible</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Model Name</label>
+                                <input type="text" id="model-input" placeholder="gpt-4o, llama3.1" class="w-full p-3 rounded-xl bg-white/50 border border-white/60 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Base URL (Optional)</label>
+                                <input type="text" id="base-url-input" placeholder="http://localhost:11434/v1" class="w-full p-3 rounded-xl bg-white/50 border border-white/60 outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                            <input type="password" id="api-key-input" placeholder="sk-..." class="w-full p-3 rounded-xl bg-white/50 border border-white/60 outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Leave blank if using local providers like Ollama.</p>
+                        </div>
+
+                        <div class="pt-6 border-t border-white/40">
+                            <h3 class="font-bold text-lg mb-4">GitHub Integration</h3>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">GitHub PAT</label>
+                            <input type="password" id="github-token-input" placeholder="ghp_..." class="w-full p-3 rounded-xl bg-white/50 border border-white/60 outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Requires <code>repo</code> and <code>workflow</code> scopes.</p>
+                        </div>
+
+                        <div class="pt-4 flex justify-end">
+                            <div class="btn-tough-bubble" onclick="saveSettings()">
+                                <span class="btn-text">Save Settings</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- STATE & DOM ---
+        let pyodide = null;
+        let messages = [
+            { role: 'system', content: 'You are PyCraft AI. You can run python code, create github repos, and upload files. To use a tool, output ONLY valid JSON wrapped in <tool_call> tags. E.g: <tool_call>{"tool":"run_python","code":"print(1+1)"}</tool_call> or <tool_call>{"tool":"github_create_file","repo":"my-repo","path":"main.py","content":"print(1)"}</tool_call>. If teaching, explain concepts clearly then provide the tool call.' }
+        ];
+        let uploadedFileData = null;
+
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const pythonConsole = document.getElementById('python-console');
+        
+        // --- VIEW SWITCHING ---
+        function switchTab(index) {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            if(index === 0) document.getElementById('home-view').classList.remove('hidden');
+            if(index === 1) document.getElementById('project-view').classList.remove('hidden');
+            if(index === 2) document.getElementById('setting-view').classList.remove('hidden');
+        }
+
+        // --- TAB PHYSICS ---
+        const track = document.querySelector('.tab-track');
+        const tabs = document.querySelectorAll('.tab-item');
+        const pill = document.getElementById('activePill');
+        let currentIndex = 0;
+        let isPressedTab = false;
+        const MAX_PULL_X = 10; const MAX_PULL_Y = 3; const PULL_RESISTANCE = 0.06;
+
+        function updatePillBaseSize(targetTab) {
+            pill.style.left = `${targetTab.offsetLeft}px`;
+            pill.style.width = `${targetTab.offsetWidth}px`;
+        }
+        updatePillBaseSize(tabs[0]);
+
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('mousedown', (e) => {
+                switchTab(index);
+                const isNewTab = index !== currentIndex;
+                if (isNewTab) {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentIndex = index;
+                    pill.style.transition = 'left 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), width 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), transform 0.45s cubic-bezier(0.25, 1.4, 0.4, 1)';
+                    pill.style.transform = 'translate(0px, 0px) scale(1.05)';
+                    updatePillBaseSize(tab);
+                    setTimeout(() => { if (e.buttons === 1) { isPressedTab = true; handleJellyPull(e); } }, 100);
+                } else { isPressedTab = true; handleJellyPull(e); }
+            });
+        });
+        window.addEventListener('mousemove', (e) => { if (isPressedTab) handleJellyPull(e); });
+        window.addEventListener('mouseup', () => {
+            if (!isPressedTab) return;
+            isPressedTab = false;
+            pill.style.transition = 'left 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), width 0.45s cubic-bezier(0.25, 1.4, 0.4, 1), transform 0.45s cubic-bezier(0.25, 1.4, 0.4, 1)';
+            pill.style.transform = 'translate(0px, 0px) scale(1)';
+            updatePillBaseSize(tabs[currentIndex]);
+        });
+        function handleJellyPull(e) {
+            const activeTab = tabs[currentIndex]; const rect = activeTab.getBoundingClientRect();
+            const centerX = rect.left + (rect.width / 2); const centerY = rect.top + (rect.height / 2);
+            const relX = e.clientX - centerX; const relY = e.clientY - centerY;
+            let moveX = Math.max(-MAX_PULL_X, Math.min(MAX_PULL_X, relX * PULL_RESISTANCE));
+            let moveY = Math.max(-MAX_PULL_Y, Math.min(MAX_PULL_Y, relY * PULL_RESISTANCE));
+            pill.style.transition = 'transform 0.02s linear, left 0.02s linear, width 0.02s linear';
+            pill.style.left = `${activeTab.offsetLeft + moveX}px`;
+            pill.style.width = `${activeTab.offsetWidth}px`; 
+            pill.style.transform = `translateY(${moveY}px) scale(1.05)`;
+        }
+        window.addEventListener('resize', () => { pill.style.transition = 'none'; updatePillBaseSize(tabs[currentIndex]); });
+
+        // --- BUTTON PHYSICS (Send Btn & Home Btn) ---
+        const buttons = document.querySelectorAll('.btn-tough-bubble');
+        buttons.forEach(btn => {
+            const text = btn.querySelector('.btn-text');
+            let isPressed = false;
+            const MAX_STRETCH = 15; const DRAG_RESISTANCE = 0.08;
+            
+            btn.addEventListener('mousedown', (e) => { isPressed = true; handleBubbleSquish(e); });
+            window.addEventListener('mousemove', (e) => { if (isPressed) handleBubbleSquish(e); });
+            window.addEventListener('mouseup', () => {
+                if (!isPressed) return;
+                isPressed = false;
+                btn.style.transition = 'transform 0.6s cubic-bezier(0.25, 1.5, 0.5, 1)';
+                btn.style.transform = 'translate(0px, 0px) scale(1)';
+                if(text) text.style.transform = 'translate(0px, 0px)';
+            });
+            function handleBubbleSquish(e) {
+                const rect = btn.getBoundingClientRect();
+                const centerX = rect.left + (rect.width / 2); const centerY = rect.top + (rect.height / 2);
+                const relX = e.clientX - centerX; const relY = e.clientY - centerY;
+                let moveX = Math.max(-MAX_STRETCH, Math.min(MAX_STRETCH, relX * DRAG_RESISTANCE));
+                let moveY = Math.max(-MAX_STRETCH, Math.min(MAX_STRETCH, relY * DRAG_RESISTANCE));
+                btn.style.transition = 'transform 0.05s linear';
+                btn.style.transform = `translate(${moveX}px, ${moveY}px) scale(0.96)`;
+                if(text) text.style.transform = `translate(${moveX * 0.4}px, ${moveY * 0.4}px)`;
+            }
+        });
+
+        // --- INPUT PHYSICS ---
+        const wrapper = document.getElementById('jellyWrapper');
+        let isPressedInput = false;
+        const I_MAX_PULL_X = 12; const I_MAX_PULL_Y = 4; const I_PULL_RESISTANCE = 0.05;
+        wrapper.addEventListener('mousedown', (e) => { isPressedInput = true; handleInputJellyPull(e); });
+        window.addEventListener('mousemove', (e) => { if (isPressedInput) handleInputJellyPull(e); });
+        window.addEventListener('mouseup', () => {
+            if (!isPressedInput) return;
+            isPressedInput = false;
+            wrapper.style.transition = 'transform 0.45s cubic-bezier(0.25, 1.4, 0.4, 1)';
+            wrapper.style.transform = 'translate(0px, 0px) scale(1)';
+        });
+        function handleInputJellyPull(e) {
+            const rect = wrapper.getBoundingClientRect();
+            const centerX = rect.left + (rect.width / 2); const centerY = rect.top + (rect.height / 2);
+            const relX = e.clientX - centerX; const relY = e.clientY - centerY;
+            let moveX = Math.max(-I_MAX_PULL_X, Math.min(I_MAX_PULL_X, relX * I_PULL_RESISTANCE));
+            let moveY = Math.max(-I_MAX_PULL_Y, Math.min(I_MAX_PULL_Y, relY * I_PULL_RESISTANCE));
+            wrapper.style.transition = 'transform 0.02s linear';
+            wrapper.style.transform = `translate3d(${moveX}px, ${moveY}px, 0) scale(1.04)`;
+        }
+
+        // --- PYODIDE LOGIC ---
+        async function initPyodide() {
+            try {
+                pyodide = await loadPyodide();
+                appendToConsole("Python 3.10 (Pyodide) initialized successfully.");
+            } catch (e) { appendToConsole("Error loading Pyodide: " + e.message); }
+        }
+        function appendToConsole(text) {
+            pythonConsole.innerHTML += `\n${text}`;
+            pythonConsole.scrollTop = pythonConsole.scrollHeight;
+        }
+
+        // --- UI & CHAT LOGIC ---
+        function addMessageToUI(role, content) {
+            const wrapper = document.createElement('div');
+            const isUser = role === 'user';
+            const isTool = role === 'tool';
+            wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble max-w-[80%] p-3 rounded-2xl shadow-sm ${isUser ? 'bg-blue-500 text-white rounded-br-none' : isTool ? 'bg-gray-900 text-green-400 font-mono text-xs rounded-bl-none' : 'bg-white/70 text-gray-800 rounded-bl-none border border-white/60'}`;
+            if (!isTool && !isUser) {
+                content = content.replace(/```python([\s\S]*?)```/g, '<pre class="bg-gray-900 text-green-400 p-2 rounded-lg my-2 overflow-x-auto"><code>$1</code></pre>');
+                content = content.replace(/`([^`]+)`/g, '<code class="bg-gray-200 text-gray-800 px-1 rounded">$1</code>');
+            }
+            bubble.innerHTML = content;
+            wrapper.appendChild(bubble);
+            chatMessages.appendChild(wrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function saveSettings() {
+            localStorage.setItem('ai_provider', document.getElementById('provider-select').value);
+            localStorage.setItem('ai_model', document.getElementById('model-input').value);
+            localStorage.setItem('ai_base_url', document.getElementById('base-url-input').value);
+            localStorage.setItem('ai_api_key', document.getElementById('api-key-input').value);
+            localStorage.setItem('gh_token', document.getElementById('github-token-input').value);
+            switchTab(1); // Go back to project after saving
+        }
+
+        // Load settings on start
+        if (localStorage.getItem('ai_model')) {
+            document.getElementById('model-input').value = localStorage.getItem('ai_model');
+            document.getElementById('api-key-input').value = localStorage.getItem('ai_api_key');
+            document.getElementById('base-url-input').value = localStorage.getItem('ai_base_url');
+            document.getElementById('github-token-input').value = localStorage.getItem('gh_token');
+            document.getElementById('provider-select').value = localStorage.getItem('ai_provider');
+        }
+
+        document.getElementById('upload-btn').onclick = () => document.getElementById('file-input').click();
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                uploadedFileData = { name: file.name, type: file.type, content: event.target.result };
+                document.getElementById('upload-preview').innerText = `Attached: ${file.name}`;
+                document.getElementById('upload-preview').classList.remove('hidden');
+            };
+            if (file.type.startsWith('image/')) reader.readAsDataURL(file);
+            else reader.readAsText(file);
+        };
+
+        async function callAI() {
+            const provider = localStorage.getItem('ai_provider') || 'openai';
+            const model = localStorage.getItem('ai_model') || 'gpt-3.5-turbo';
+            const apiKey = localStorage.getItem('ai_api_key');
+            let baseUrl = localStorage.getItem('ai_base_url');
+
+            const defaultUrls = {
+                openai: 'https://api.openai.com/v1', openrouter: 'https://openrouter.ai/api/v1',
+                groq: 'https://api.groq.com/openai/v1', together: 'https://api.together.xyz/v1',
+                mistral: 'https://api.mistral.ai/v1', ollama: 'http://localhost:11434/v1',
+                lmstudio: 'http://localhost:1234/v1', xai: 'https://api.x.ai/v1', custom: baseUrl
+            };
+            if (!baseUrl) baseUrl = defaultUrls[provider] || defaultUrls.openai;
+
+            try {
+                const response = await fetch(`${baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': window.location.href, 'X-Title': 'PyCraft AI'
+                    },
+                    body: JSON.stringify({ model, messages, temperature: 0.2 })
+                });
+                if (!response.ok) throw new Error(`API Error: ${await response.text()}`);
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) { return `Error contacting AI provider: ${error.message}. Check settings.`; }
+        }
+
+        async function executeTools(aiResponse) {
+            const toolRegex = /<tool_call>(.*?)<\/tool_call>/s;
+            const match = aiResponse.match(toolRegex);
+            let cleanResponse = aiResponse.replace(toolRegex, '').trim();
+            if (cleanResponse) addMessageToUI('assistant', cleanResponse);
+            if (!match) return;
+
+            try {
+                const toolData = JSON.parse(match[1]);
+                addMessageToUI('user', `⚙️ Executing: ${toolData.tool}...`); 
+                const ghToken = localStorage.getItem('gh_token');
+                let toolResult = "";
+
+                switch(toolData.tool) {
+                    case 'run_python':
+                        if (!pyodide) toolResult = "Pyodide not loaded.";
+                        else {
+                            pyodide.runPython('import sys; sys.stdout = open("stdout.txt", "w")');
+                            await pyodide.runPythonAsync(toolData.code);
+                            toolResult = pyodide.runPython('open("stdout.txt").read()');
+                            appendToConsole(`> Executed:\n${toolData.code}\n> Output:\n${toolResult}`);
+                        }
+                        break;
+                    case 'github_create_repo':
+                        const repoRes = await fetch('https://api.github.com/user/repos', {
+                            method: 'POST', headers: { 'Authorization': `token ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' },
+                            body: JSON.stringify({ name: toolData.name, private: false })
+                        });
+                        const repoData = await repoRes.json();
+                        toolResult = `Created repo: ${repoData.html_url || repoData.message}`;
+                        break;
+                    case 'github_create_file':
+                        const content = btoa(unescape(encodeURIComponent(toolData.content)));
+                        const fileRes = await fetch(`https://api.github.com/repos/${toolData.repo}/contents/${toolData.path}`, {
+                            method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' },
+                            body: JSON.stringify({ message: `Create ${toolData.path}`, content })
+                        });
+                        const fileData = await fileRes.json();
+                        toolResult = `Uploaded ${toolData.path}. URL: ${fileData.content?.html_url || fileData.message}`;
+                        break;
+                    default: toolResult = "Unknown tool.";
+                }
+                addMessageToUI('tool', toolResult);
+                messages.push({ role: 'user', content: `Tool Result:\n${toolResult}\nContinue or finish.` });
+                sendBtn.style.opacity = 0.5;
+                const nextResponse = await callAI();
+                await executeTools(nextResponse);
+                sendBtn.style.opacity = 1;
+            } catch (err) { addMessageToUI('tool', `Tool Error: ${err.message}`); }
+        }
+
+        sendBtn.onclick = async () => {
+            const text = userInput.value.trim();
+            if (!text) return;
+            let userContent = text;
+            if (uploadedFileData) {
+                userContent += `\n\n[Attached File: ${uploadedFileData.name}]\n[Content start]\n${uploadedFileData.content.substring(0, 5000)}\n[Content end]`;
+                uploadedFileData = null;
+                document.getElementById('upload-preview').classList.add('hidden');
+            }
+            addMessageToUI('user', userContent);
+            messages.push({ role: 'user', content: userContent });
+            userInput.value = '';
+            sendBtn.style.opacity = 0.5;
+            addMessageToUI('assistant', 'Thinking...');
+            const aiResponse = await callAI();
+            chatMessages.lastChild.remove(); 
+            await executeTools(aiResponse);
+            sendBtn.style.opacity = 1;
+        };
+
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
+        });
+
+        // --- BOOT ---
+        initPyodide();
+    </script>
+</body>
+</html>
